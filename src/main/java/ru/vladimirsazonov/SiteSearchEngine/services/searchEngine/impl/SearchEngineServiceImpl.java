@@ -137,10 +137,9 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         CountDownLatch countDownLatch = new CountDownLatch(taskList.size());
         ForkJoinTask.invokeAll(taskList)
                 .forEach(task -> {
-                        int siteId = task.getSiteId();
-                        Site site = dao.findSiteById(siteId);
+                        Site site = dao.findSiteById(task.getSiteId());
                         List<LinkHandleTaskResult> taskResults = task.join();
-                        if (checkFailedIndexingSiteWithOnePage(siteId, taskResults, countDownLatch)) return;
+                        if (checkFailedIndexingSiteWithOnePage(site, taskResults, countDownLatch)) return;
                         if (singlePageFlag) indexingPage(taskResults.get(0), site, countDownLatch);
                         else threadPoolExecutor.execute(() -> {
                             dao.savePages(getSitePages(taskResults, site));
@@ -159,11 +158,13 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         startFlag = false;
     }
 
-    private boolean checkFailedIndexingSiteWithOnePage(int siteId, List<LinkHandleTaskResult> taskResults,
+    private boolean checkFailedIndexingSiteWithOnePage(Site site, List<LinkHandleTaskResult> taskResults,
                                                     CountDownLatch countDownLatch) {
         Exception exception;
-        if (!(taskResults.size() == 1 && (exception = taskResults.get(0).getException()) != null)) return false;
-        dao.setSiteStatusFailed(siteId, exception.getMessage());
+        LinkHandleTaskResult taskResult;
+        if (!(taskResults.size() == 1 && (exception = (taskResult = taskResults.get(0)).getException()) != null)) return false;
+        dao.setSiteStatusFailed(site.getId(), exception.getMessage());
+        if (taskResult.getStatusCode() != 0) dao.savePages(getSitePages(taskResults, site));
         countDownLatch.countDown();
         return true;
     }

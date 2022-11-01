@@ -11,7 +11,6 @@ import org.jsoup.select.Elements;
 import ru.vladimirsazonov.SiteSearchEngine.repositories.SelectorRepository;
 import ru.vladimirsazonov.SiteSearchEngine.services.morphology.MorphologyService;
 
-import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.RecursiveTask;
@@ -50,7 +49,7 @@ public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskRe
                 ex = (HttpStatusException) e;
                 statusCode = ((HttpStatusException) e).getStatusCode();
             }
-            else if (e instanceof SSLHandshakeException) ex = (SSLHandshakeException) e;
+            else if (!(e instanceof NullPointerException)) ex = (IOException) e;
             log.warn(e.getMessage());
         }
     }
@@ -64,7 +63,7 @@ public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskRe
     private Connection getConnection(String siteUrl, String userAgentName) {
         try {
             Thread.sleep(new Random().nextInt(100) + 100);
-            return Jsoup.connect(siteUrl)
+            return Jsoup.connect(siteUrl).timeout(3000)
                     .userAgent(userAgentName);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

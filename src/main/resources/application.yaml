@@ -17,4 +17,22 @@ spring:
   sql:
     init:
       mode: always
+sites:
+  - url: http://www.playback.ru
+    name: Playback
+  -
+    url: http://radiomv.ru
+    name: Radiomv
+  -
+    url: https://ipfran.ru
+    name: Ipfran
+  -
+    url: https://dimonvideo.ru
+    name: Dimonvideo
+  -
+    url: https://nikoartgallery.com
+    name: Nikoartgallery
+  -
+    url: https://dombulgakova.ru
+    name: Dombulgakova
 user-agent-name: Search_Engine_App
