@@ -22,6 +22,11 @@
             <name>GitHub Apache Maven Packages - Russian Morphology</name>
             <url>https://maven.pkg.github.com/skillbox-java/russianmorphology</url>
         </repository>
+        <repository>
+            <id>jitpack</id>
+            <name>AOT Library</name>
+            <url>https://jitpack.io</url>
+        </repository>
     </repositories>
 
     <dependencies>
@@ -54,6 +59,11 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.demidko</groupId>
+            <artifactId>aot</artifactId>
+            <version>2021.09.19</version>
         </dependency>
         <dependency>
             <groupId>org.apache.lucene.morphology</groupId>

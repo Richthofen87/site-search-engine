@@ -48,8 +48,7 @@ public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskRe
             if (e instanceof HttpStatusException) {
                 ex = (HttpStatusException) e;
                 statusCode = ((HttpStatusException) e).getStatusCode();
-            }
-            else if (!(e instanceof NullPointerException)) ex = (IOException) e;
+            } else if (!(e instanceof NullPointerException)) ex = (IOException) e;
             log.warn(e.getMessage());
         }
     }
@@ -73,6 +72,7 @@ public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskRe
 
     @Override
     public List<LinkHandleTaskResult> compute() {
+        if (statusCode == 0) return List.of();
         String pagePath = getPath();
         LinkHandleTaskResult linkHandleTaskResult = new LinkHandleTaskResult(pagePath, statusCode, siteId,
                 document != null ? document.html() : "");

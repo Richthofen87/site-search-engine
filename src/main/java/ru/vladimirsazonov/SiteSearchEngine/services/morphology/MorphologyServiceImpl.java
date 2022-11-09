@@ -43,13 +43,11 @@ public class MorphologyServiceImpl implements MorphologyService {
         return Arrays.stream(words)
                 .filter(word -> !word.isBlank())
                 .map(String::toLowerCase)
-                .filter(word -> {
-                    String morphInfo = luceneMorph.getMorphInfo(word).get(0);
-                    return !morphInfo.contains(" МЕЖД") && !morphInfo.contains(" ПРЕДЛ")
-                            && !morphInfo.contains(" СОЮЗ") && !morphInfo.contains(" МС")
-                            && !morphInfo.contains(" ЧАСТ");
-                })
-                .flatMap(word -> luceneMorph.getNormalForms(word).stream())
+                .flatMap(word -> luceneMorph.getMorphInfo(word).stream())
+                .filter(morphInfo -> !morphInfo.contains("МЕЖД") && !morphInfo.contains("ПРЕДЛ")
+                        && !morphInfo.contains("СОЮЗ") && !morphInfo.contains("МС")
+                        && !morphInfo.contains("ЧАСТ") && !morphInfo.contains("КР_ПРИЛ"))
+                .map(morphInfo -> morphInfo.substring(0, morphInfo.indexOf("|")))
                 .toList();
     }
 }

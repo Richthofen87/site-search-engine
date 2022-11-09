@@ -15,7 +15,9 @@ import ru.vladimirsazonov.SiteSearchEngine.exceptions.DisableSiteSearchException
 import ru.vladimirsazonov.SiteSearchEngine.exceptions.EmptySearchQueryException;
 import ru.vladimirsazonov.SiteSearchEngine.exceptions.RunApplicationException;
 import ru.vladimirsazonov.SiteSearchEngine.repositories.SelectorRepository;
+import com.github.demidko.aot.WordformMeaning;
 
+import java.io.IOException;
 import java.time.LocalTime;
 import java.util.*;
 import java.util.concurrent.*;
@@ -112,7 +114,6 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         List<String> lemmas = getLemmas(query, siteUrl, upperPagesCountBound);
         List<Page> pages = getSearchResultPages(lemmas, siteUrl);
         if (pages.isEmpty()) return new SearchResultResponse(0, new SearchResultResponse.SearchResult[0]);
-        lemmas = Arrays.asList(query.split("[^А-ЯЁа-яё]+"));
         SearchResultResponse.SearchResult[] data = getDataArray(getPagesAndRelevanceMap(pages, lemmas), lemmas);
         return new SearchResultResponse(data.length, data);
     }
@@ -137,17 +138,17 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         CountDownLatch countDownLatch = new CountDownLatch(taskList.size());
         ForkJoinTask.invokeAll(taskList)
                 .forEach(task -> {
-                        Site site = dao.findSiteById(task.getSiteId());
-                        List<LinkHandleTaskResult> taskResults = task.join();
-                        if (checkFailedIndexingSiteWithOnePage(site, taskResults, countDownLatch)) return;
-                        if (singlePageFlag) indexingPage(taskResults.get(0), site, countDownLatch);
-                        else threadPoolExecutor.execute(() -> {
-                            dao.savePages(getSitePages(taskResults, site));
-                            dao.saveLemmas(getSiteLemmas(taskResults, site));
-                            dao.saveIndexes(getSiteIndexes(taskResults, site));
-                            dao.setSitesStatusIndexed(site);
-                            cancelScheduledTask(site, countDownLatch);
-                        });
+                    Site site = dao.findSiteById(task.getSiteId());
+                    List<LinkHandleTaskResult> taskResults = task.join();
+                    if (checkFailedIndexingSite(site, taskResults, countDownLatch)) return;
+                    if (singlePageFlag) indexingPage(taskResults.get(0), site, countDownLatch);
+                    else threadPoolExecutor.execute(() -> {
+                        dao.savePages(getSitePages(taskResults, site));
+                        dao.saveLemmas(getSiteLemmas(taskResults, site));
+                        dao.saveIndexes(getSiteIndexes(taskResults, site));
+                        dao.setSitesStatusIndexed(site);
+                        cancelScheduledTask(site, countDownLatch);
+                    });
                 });
         try {
             countDownLatch.await();
@@ -158,13 +159,15 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         startFlag = false;
     }
 
-    private boolean checkFailedIndexingSiteWithOnePage(Site site, List<LinkHandleTaskResult> taskResults,
-                                                    CountDownLatch countDownLatch) {
-        Exception exception;
-        LinkHandleTaskResult taskResult;
-        if (!(taskResults.size() == 1 && (exception = (taskResult = taskResults.get(0)).getException()) != null)) return false;
-        dao.setSiteStatusFailed(site.getId(), exception.getMessage());
-        if (taskResult.getStatusCode() != 0) dao.savePages(getSitePages(taskResults, site));
+    private boolean checkFailedIndexingSite(Site site, List<LinkHandleTaskResult> taskResults,
+                                            CountDownLatch countDownLatch) {
+        StringBuilder errorMessageBuilder = new StringBuilder();
+        for (LinkHandleTaskResult taskResult : taskResults) {
+            Exception exception;
+            if ((exception = taskResult.getException()) == null) return false;
+            errorMessageBuilder.append(exception.getMessage()).append("; ");
+        }
+        dao.setSiteStatusFailed(site.getId(), errorMessageBuilder.toString().trim());
         countDownLatch.countDown();
         return true;
     }
@@ -280,33 +283,31 @@ public class SearchEngineServiceImpl implements SearchEngineService {
     }
 
     private void checkSiteUrlAndSiteStatus(String siteUrl) {
+        List<Site> sites;
         if (siteUrl != null) {
             if (siteDataList.stream().noneMatch(siteData -> siteData.getUrl().equals(siteUrl)))
                 throw new DisableSiteSearchException();
             Site site;
             if (!((site = dao.findSiteByUrl(siteUrl)) != null && site.getStatus().equals(Status.INDEXED)))
                 throw new RunApplicationException("Сайт ещё не проиндексирован!");
-        }
-        List<Site> sites = dao.findAllSites();
-        if (!(sites != null && sites.stream().anyMatch(s -> s.getStatus().equals(Status.INDEXED))))
+        } else if (!((sites = dao.findAllSites()) != null
+                && sites.stream().anyMatch(s -> s.getStatus().equals(Status.INDEXED))))
             throw new RunApplicationException("Сайты ещё не проиндексированы!");
     }
 
     private SearchResultResponse.SearchResult[] getDataArray(Map<Page, Float> pagesAndRelevanceMap, List<String> lemmas) {
         return pagesAndRelevanceMap.entrySet().stream()
                 .map(entry -> getSearchResult(entry.getKey(), entry.getValue(), lemmas))
-                .filter(Objects::nonNull)
                 .sorted(Comparator.reverseOrder())
                 .toArray(SearchResultResponse.SearchResult[]::new);
     }
 
     private SearchResultResponse.SearchResult getSearchResult(Page page, float relevance, List<String> lemmas) {
-        Site pageSite = page.getSite();
+        Site site = page.getSite();
         Document document = Jsoup.parse(page.getContent());
         String snippet = getSnippet(document.text(), lemmas);
-        if (snippet.isEmpty()) return null;
-        return new SearchResultResponse.SearchResult(pageSite.getUrl(), pageSite.getName(), page.getPath(),
-                document.title(), getSnippet(document.text(), lemmas), relevance);
+        return new SearchResultResponse.SearchResult(site.getUrl(), site.getName(), page.getPath(),
+                document.title(), snippet, relevance);
     }
 
     private List<String> getLemmas(String query, String site, int upperPagesCountBound) {
@@ -315,10 +316,7 @@ public class SearchEngineServiceImpl implements SearchEngineService {
                 .map(lemma -> Map.entry(lemma,
                         site == null ? dao.getTotalFrequencyForLemma(lemma)
                                 : dao.getFrequencyForLemmaBySite(lemma, site)))
-                .filter(entry -> {
-                    Integer frequency = entry.getValue();
-                    return frequency < upperPagesCountBound && frequency != 0;
-                })
+                .filter(entry -> entry.getValue() < upperPagesCountBound)
                 .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .toList();
@@ -353,15 +351,23 @@ public class SearchEngineServiceImpl implements SearchEngineService {
 
     private String getSnippet(String text, List<String> lemmas) {
         StringBuilder builder = new StringBuilder();
-        getTextFragments(text, lemmas).stream()
-                .limit(3L)
-                .forEach(fragment -> builder.append(handleFragment(fragment, lemmas)).append("..."));
+        List<String> fragments = new ArrayList<>();
+        Set<String> totalWordFormsForHandle = new HashSet<>();
+        for (String lemma : lemmas) {
+            Set<String> wordForms = getLemmasWordForms(lemma);
+            totalWordFormsForHandle.addAll(wordForms);
+            fragments.add(getTextFragment(text, wordForms));
+        }
+        fragments.sort((s1, s2) -> s2.length() - s1.length());
+        for (int i = fragments.size() - 1; i > 0; i--)
+            for (int j = i - 1; j >= 0; j--)
+                if (fragments.get(j).contains(fragments.get(i))) fragments.remove(i--);
+        fragments.forEach(fragment -> builder.append(handleFragment(fragment, totalWordFormsForHandle)).append("..."));
         return builder.toString();
     }
 
-    private List<String> getTextFragments(String text, List<String> lemmas) {
-        List<String> indexes = new ArrayList<>();
-        lemmas.forEach(lemma -> {
+    private String getTextFragment(String text, Set<String> lemmas) {
+        for (String lemma : lemmas) {
             Matcher matcher = Pattern.compile("(?i)(?u)" + lemma).matcher(text);
             int index, start, end;
             int length = text.length();
@@ -373,14 +379,10 @@ public class SearchEngineServiceImpl implements SearchEngineService {
                 else start = ++index;
                 if (length < end + 20 || (index = text.indexOf(" ", end + 20)) == -1) end = length;
                 else end = index;
-                indexes.add(text.substring(start, end));
+                return text.substring(start, end);
             }
-        });
-        indexes.sort((s1, s2) -> s2.length() - s1.length());
-        for (int i = indexes.size() - 1; i > 0; i--)
-            for (int j = i - 1; j >= 0; j--)
-                if (indexes.get(j).contains(indexes.get(i))) indexes.remove(i--);
-        return indexes;
+        }
+        return "";
     }
 
     private boolean isAPartOfWord(int start, int end, String text) {
@@ -388,7 +390,7 @@ public class SearchEngineServiceImpl implements SearchEngineService {
                 start != 0 && Character.isAlphabetic(text.charAt(start - 1));
     }
 
-    private String handleFragment(String fragment, List<String> lemmas) {
+    private String handleFragment(String fragment, Set<String> lemmas) {
         StringBuilder builder = new StringBuilder(fragment);
         char firstMatchedFragmentChar;
         for (String lemma : lemmas) {
@@ -402,10 +404,20 @@ public class SearchEngineServiceImpl implements SearchEngineService {
                 builder.replace(start, end, "<b>" + lemma + "</b>");
                 if (firstMatchedFragmentChar != firstLemmaChar)
                     builder.replace(start + 3, start + 4, String.valueOf(firstMatchedFragmentChar));
-                matcher.region(++end, builder.length());
             }
         }
         return builder.toString();
+    }
+
+    private Set<String> getLemmasWordForms(String lemma) {
+        try {
+            return WordformMeaning.lookupForMeanings(lemma).stream()
+                    .flatMap(wordForm -> wordForm.getTransformations().stream())
+                    .map(WordformMeaning::toString)
+                    .collect(Collectors.toSet());
+        } catch (IOException ex) {
+            return Set.of();
+        }
     }
 }
 
