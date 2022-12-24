@@ -1,9 +1,9 @@
 package ru.vladimirsazonov.SiteSearchEngine.services.searchEngine.impl;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import ru.vladimirsazonov.SiteSearchEngine.config.AppProps;
 import ru.vladimirsazonov.SiteSearchEngine.dto.*;
@@ -27,29 +27,26 @@ import java.util.stream.Collectors;
 
 @Service
 @Slf4j
+@RequiredArgsConstructor
 public class SearchEngineServiceImpl implements SearchEngineService {
 
     private final int PARALLELISM_LEVEL = Runtime.getRuntime().availableProcessors();
     private final Map<Integer, ScheduledFuture<?>> scheduledFutureMap = new ConcurrentHashMap<>();
-    private final List<AppProps.SiteData> siteDataList;
-    private final String userAgentName;
+    private final AppProps appProps;
     private final SelectorRepository selectorRepository;
     private final MorphologyService morphologyService;
     private final DAO dao;
+    private List<AppProps.SiteData> siteDataList;
+    private String userAgentName;
     private ScheduledExecutorService scheduledThreadPoolExecutor;
     private ForkJoinPool forkJoinPool;
     private ExecutorService threadPoolExecutor;
     private boolean startFlag;
     private String baseUrlForSinglePage;
 
-    @Autowired
-    public SearchEngineServiceImpl(AppProps appProps, SelectorRepository selectorRepository,
-                                   MorphologyService morphologyService, DAO dao) {
+    public void setSiteDataListAndUserAgentName() {
         siteDataList = appProps.getSites();
         userAgentName = appProps.getUserAgentName();
-        this.selectorRepository = selectorRepository;
-        this.morphologyService = morphologyService;
-        this.dao = dao;
     }
 
     @Override
@@ -83,6 +80,7 @@ public class SearchEngineServiceImpl implements SearchEngineService {
 
     @Override
     public SearchEngineResponse getStatistics() {
+        if (siteDataList == null || userAgentName == null) setSiteDataListAndUserAgentName();
         List<SiteStatistics> detailed = new ArrayList<>();
         siteDataList.forEach(siteData -> {
             String name = siteData.getName();
@@ -110,7 +108,7 @@ public class SearchEngineServiceImpl implements SearchEngineService {
     public SearchEngineResponse startSearch(String query, String siteUrl, int offset, int limit) {
         if (query == null || query.isBlank()) throw new EmptySearchQueryException();
         checkSiteUrlAndSiteStatus(siteUrl);
-        int upperPagesCountBound = Math.round(dao.getPagesTotalCount() * 0.8f);
+        int upperPagesCountBound = appProps.getResultPageMaxCount();
         List<String> lemmas = getLemmas(query, siteUrl, upperPagesCountBound);
         List<Page> pages = getSearchResultPages(lemmas, siteUrl);
         if (pages.isEmpty()) return new SearchResultResponse(0, new SearchResultResponse.SearchResult[0]);
@@ -362,8 +360,8 @@ public class SearchEngineServiceImpl implements SearchEngineService {
         for (int i = fragments.size() - 1; i > 0; i--)
             for (int j = i - 1; j >= 0; j--)
                 if (fragments.get(j).contains(fragments.get(i))) fragments.remove(i--);
-        fragments.forEach(fragment -> builder.append(handleFragment(fragment, totalWordFormsForHandle)).append("..."));
-        return builder.toString();
+        fragments.forEach(fragment -> builder.append(handleFragment(fragment, totalWordFormsForHandle)).append("... "));
+        return builder.deleteCharAt(builder.length() - 1).toString();
     }
 
     private String getTextFragment(String text, Set<String> lemmas) {

@@ -17,6 +17,4 @@ public class SearchResultResponse extends SearchEngineResponse {
             return Float.compare(this.relevance, o.relevance);
         }
     }
-
-
 }

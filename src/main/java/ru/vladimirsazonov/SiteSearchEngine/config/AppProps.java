@@ -1,8 +1,6 @@
 package ru.vladimirsazonov.SiteSearchEngine.config;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -15,11 +13,12 @@ import java.util.List;
 public class AppProps {
     private List<SiteData> sites = new ArrayList<>();
     private String userAgentName;
+    private int resultPageMaxCount;
 
     @Component
     @Data
-    @NoArgsConstructor
     @AllArgsConstructor
+    @NoArgsConstructor
     public static class SiteData {
         private String name;
         private String url;

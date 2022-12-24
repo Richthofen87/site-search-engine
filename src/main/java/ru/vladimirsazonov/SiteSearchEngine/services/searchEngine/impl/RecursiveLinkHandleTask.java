@@ -1,7 +1,6 @@
 package ru.vladimirsazonov.SiteSearchEngine.services.searchEngine.impl;
 
-import lombok.Getter;
-import lombok.Setter;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
@@ -16,42 +15,20 @@ import java.util.*;
 import java.util.concurrent.RecursiveTask;
 import java.util.stream.Collectors;
 
-@Getter
-@Setter
+@Data
 @Slf4j
 public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskResult>> {
 
-    private final MorphologyService morphologyService;
-    private final SelectorRepository selectorRepository;
     private final String userAgentName;
+    private final int siteId;
     private final String siteUrl;
     private final String baseUrl;
-    private final int siteId;
+    private final MorphologyService morphologyService;
+    private final SelectorRepository selectorRepository;
     private int statusCode;
     private Document document;
     private IOException ex;
     private boolean singlePageFlag;
-
-    public RecursiveLinkHandleTask(String userAgentName, int siteId, String siteUrl, String baseUrl,
-                                   MorphologyService morphologyService, SelectorRepository repository) {
-        this.userAgentName = userAgentName;
-        this.morphologyService = morphologyService;
-        this.selectorRepository = repository;
-        this.siteId = siteId;
-        this.siteUrl = siteUrl;
-        this.baseUrl = baseUrl;
-        Connection connection = getConnection(this.siteUrl, userAgentName);
-        try {
-            statusCode = Objects.requireNonNull(connection).execute().statusCode();
-            document = Objects.requireNonNull(connection).get();
-        } catch (NullPointerException | IOException e) {
-            if (e instanceof HttpStatusException) {
-                ex = (HttpStatusException) e;
-                statusCode = ((HttpStatusException) e).getStatusCode();
-            } else if (!(e instanceof NullPointerException)) ex = (IOException) e;
-            log.warn(e.getMessage());
-        }
-    }
 
     private String getPath() {
         String path = siteUrl.substring(baseUrl.length());
@@ -59,19 +36,27 @@ public class RecursiveLinkHandleTask extends RecursiveTask<List<LinkHandleTaskRe
         return path;
     }
 
-    private Connection getConnection(String siteUrl, String userAgentName) {
+    private void getConnection() {
+        Connection connection;
         try {
             Thread.sleep(new Random().nextInt(100) + 100);
-            return Jsoup.connect(siteUrl).timeout(3000)
+            connection = Jsoup.connect(siteUrl).timeout(3000)
                     .userAgent(userAgentName);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            return null;
+            statusCode = Objects.requireNonNull(connection).execute().statusCode();
+            document = Objects.requireNonNull(connection).get();
+        } catch (NullPointerException | IOException | InterruptedException e) {
+            if (e instanceof InterruptedException) Thread.currentThread().interrupt();
+            else if (e instanceof HttpStatusException) {
+                ex = (HttpStatusException) e;
+                statusCode = ((HttpStatusException) e).getStatusCode();
+            } else if (!(e instanceof NullPointerException)) ex = (IOException) e;
+            log.warn(e.getMessage());
         }
     }
 
     @Override
     public List<LinkHandleTaskResult> compute() {
+        getConnection();
         if (statusCode == 0) return List.of();
         String pagePath = getPath();
         LinkHandleTaskResult linkHandleTaskResult = new LinkHandleTaskResult(pagePath, statusCode, siteId,

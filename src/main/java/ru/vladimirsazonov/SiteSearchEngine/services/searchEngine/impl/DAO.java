@@ -1,6 +1,6 @@
 package ru.vladimirsazonov.SiteSearchEngine.services.searchEngine.impl;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.Data;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 import ru.vladimirsazonov.SiteSearchEngine.model.*;
@@ -14,29 +14,13 @@ import java.util.List;
 import java.util.Set;
 
 @Component
+@Data
 public class DAO {
     private final PageRepository pageRepository;
     private final LemmaRepository lemmaRepository;
     private final SiteRepository siteRepository;
     private final SearchIndexRepository searchIndexRepository;
     private String baseUrlForSinglePage;
-
-    @Autowired
-    public DAO(PageRepository pageRepository, LemmaRepository lemmaRepository,
-               SiteRepository siteRepository, SearchIndexRepository searchIndexRepository) {
-        this.pageRepository = pageRepository;
-        this.lemmaRepository = lemmaRepository;
-        this.siteRepository = siteRepository;
-        this.searchIndexRepository = searchIndexRepository;
-    }
-
-    public void setBaseUrlForSinglePage(String baseUrlForSinglePage) {
-        this.baseUrlForSinglePage = baseUrlForSinglePage;
-    }
-
-    public String getBaseUrlForSinglePage() {
-        return baseUrlForSinglePage;
-    }
 
     public Site findSiteByName(String name) {
         return siteRepository.findByName(name).orElse(null);
@@ -198,6 +182,7 @@ public class DAO {
     @Transactional
     public void deletePageAndIndexes(Site site, String url) {
         String path = url.substring(baseUrlForSinglePage.length());
+        if (path.isBlank()) path = "/";
         Page page = findPageBySiteIdAndPath(site, path);
         if (page == null) return;
         int pageId = page.getId();
