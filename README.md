@@ -30,6 +30,7 @@ and when you click on the "Search" button, search results are displayed
 
 ![Web interface](interface_screens/search.jpg)
 
+---
 ### Launch application
 
 ---
@@ -49,7 +50,7 @@ For example:
         url: http://radiomv.ru
         name: Radiomv
       user-agent-name: Search_Engine_App
-      result-page-max-count: 200
+      result-page-max-count: 150
 
 * Run application `java -jar SearchEngineApp-0.0.1-SNAPSHOT.jar`.
 
