@@ -11,21 +11,15 @@ import ru.vladimirsazonov.SiteSearchEngine.dto.ErrorResponse;
 @ResponseBody
 public class ExceptionAdvice {
 
-    @ResponseStatus(HttpStatus.FORBIDDEN)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
     @ExceptionHandler(RunApplicationException.class)
     public ErrorResponse handleException(RunApplicationException ex) {
         return getResponse(ex);
     }
 
-    @ResponseStatus(HttpStatus.NOT_FOUND)
-    @ExceptionHandler(IndexPageException.class)
-    public ErrorResponse handleException(IndexPageException ex) {
-        return getResponse(ex);
-    }
-
-    @ResponseStatus(HttpStatus.BAD_REQUEST)
-    @ExceptionHandler({EmptySearchQueryException.class, DisableSiteSearchException.class})
-    public ErrorResponse handleException(RuntimeException ex) {
+    @ResponseStatus(HttpStatus.CONFLICT)
+    @ExceptionHandler(ServerStateException.class)
+    public ErrorResponse handleException(ServerStateException ex) {
         return getResponse(ex);
     }
 

@@ -1,11 +1,13 @@
 package ru.vladimirsazonov.SiteSearchEngine.services.morphology;
 
+import com.github.demidko.aot.WordformMeaning;
 import org.apache.lucene.morphology.LuceneMorphology;
 import org.apache.lucene.morphology.russian.RussianLuceneMorphology;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class MorphologyServiceImpl implements MorphologyService {
@@ -27,6 +29,18 @@ public class MorphologyServiceImpl implements MorphologyService {
         Map<String, Integer> result = new HashMap<>();
         lemmas.forEach(lemma -> result.merge(lemma, 1, (oldV, newV) -> ++oldV));
         return result;
+    }
+
+    @Override
+    public Set<String> getLemmasWordForms(String lemma) {
+        try {
+            return WordformMeaning.lookupForMeanings(lemma).stream()
+                    .flatMap(wordForm -> wordForm.getTransformations().stream())
+                    .map(WordformMeaning::toString)
+                    .collect(Collectors.toSet());
+        } catch (IOException ex) {
+            return Set.of();
+        }
     }
 
     @Override

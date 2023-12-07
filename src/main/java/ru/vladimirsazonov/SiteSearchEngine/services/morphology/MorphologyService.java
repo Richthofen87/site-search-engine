@@ -6,4 +6,6 @@ import java.util.Set;
 public interface MorphologyService {
     Set<String> getLemmasSet(String text);
     Map<String, Integer> getLemmasAndFrequenciesMap(String text);
+
+    Set<String> getLemmasWordForms(String lemma);
 }

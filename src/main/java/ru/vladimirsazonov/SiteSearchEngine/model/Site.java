@@ -17,10 +17,10 @@ public class Site {
     private int id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column
     private Status status;
 
-    @Column(nullable = false)
+    @Column
     private LocalDateTime statusTime;
 
     @Column(columnDefinition = "TEXT")
@@ -39,9 +39,13 @@ public class Site {
     private Collection<Page> pages;
 
     public Site(Status status, LocalDateTime statusTime, String url, String name) {
+        this(name, url);
         this.status = status;
         this.statusTime = statusTime;
-        this.url = url;
+    }
+
+    public Site(String name, String url) {
         this.name = name;
+        this.url = url;
     }
 }

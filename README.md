@@ -37,20 +37,20 @@ and when you click on the "Search" button, search results are displayed
 * Install MySQL as working database;
 * Download from project root self-executable SearchEngineApp-0.0.1-SNAPSHOT.jar;
 * Create application.properties or application.yml
-with your settings in same directory as SearchEngineApp-0.0.1-SNAPSHOT.jar;
-* Put in application.yml your list of sites and 
-if you want user agent name. You can also specify an upper bound on your query results (by default it's 200).
-For example:
-
-      sites:
-       -
-        url: http://www.playback.ru
-        name: Playback
-       -
-        url: http://radiomv.ru
-        name: Radiomv
-      user-agent-name: Search_Engine_App
-      result-page-max-count: 150
+with your settings in same directory as SearchEngineApp-0.0.1-SNAPSHOT.jar. 
+Put in application.yml your list of sites and if you want user agent name and referer. 
+For example for a yaml file:
+   
+      indexing-settings:
+        sites:
+          -
+            url: http://www.playback.ru
+            name: Playback
+          -
+            url: http://radiomv.ru
+            name: Radiomv
+       user-agent-name: Search_Engine_App
+       referer: http://www.google.com
 
 * Run application `java -jar SearchEngineApp-0.0.1-SNAPSHOT.jar`.
 

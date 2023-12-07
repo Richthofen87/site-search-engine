@@ -1,52 +1,47 @@
 package ru.vladimirsazonov.SiteSearchEngine.controllers;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ru.vladimirsazonov.SiteSearchEngine.dto.SearchEngineResponse;
-import ru.vladimirsazonov.SiteSearchEngine.services.searchEngine.SearchEngineService;
+import ru.vladimirsazonov.SiteSearchEngine.services.indexing.IndexingService;
+import ru.vladimirsazonov.SiteSearchEngine.services.search.SearchService;
+import ru.vladimirsazonov.SiteSearchEngine.services.statistics.StatisticsService;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class SearchEngineController {
 
-    SearchEngineService searchEngineService;
-
-    @Autowired
-    public SearchEngineController(SearchEngineService searchEngineService) {
-        this.searchEngineService = searchEngineService;
-    }
+    private final IndexingService indexingService;
+    private final StatisticsService statisticsService;
+    final SearchService searchService;
 
     @GetMapping("/startIndexing")
-    @ResponseStatus(HttpStatus.OK)
-    public SearchEngineResponse startIndexing() {
-        return searchEngineService.startIndexing();
+    public ResponseEntity<SearchEngineResponse> startIndexing() {
+        return ResponseEntity.ok(indexingService.startIndexing());
     }
 
     @GetMapping("/stopIndexing")
-    @ResponseStatus(HttpStatus.OK)
-    public SearchEngineResponse stopIndexing() {
-        return searchEngineService.stopIndexing();
+    public ResponseEntity<SearchEngineResponse> stopIndexing() {
+        return ResponseEntity.ok(indexingService.stopIndexing());
     }
 
     @PostMapping("/indexPage")
-    @ResponseStatus(HttpStatus.OK)
-    public SearchEngineResponse indexPage(@RequestParam String url) {
-        return searchEngineService.indexPage(url);
+    public ResponseEntity<SearchEngineResponse> indexPage(@RequestParam String url) {
+        return ResponseEntity.ok(indexingService.indexPage(url));
     }
 
     @GetMapping("/statistics")
-    @ResponseStatus(HttpStatus.OK)
-    public SearchEngineResponse getStatistics() {
-        return searchEngineService.getStatistics();
+    public ResponseEntity<SearchEngineResponse> getStatistics() {
+        return ResponseEntity.ok(statisticsService.getStatistics());
     }
 
     @GetMapping("/search")
-    @ResponseStatus(HttpStatus.OK)
-    public SearchEngineResponse getSearchResult(@RequestParam(required = false) String query,
+    public ResponseEntity<SearchEngineResponse> getSearchResult(@RequestParam(required = false) String query,
                                                 @RequestParam(required = false) String site,
                                                 @RequestParam(defaultValue = "0") int offset,
                                                 @RequestParam(defaultValue = "20") int limit) {
-        return searchEngineService.startSearch(query, site, offset, limit);
+        return ResponseEntity.ok(searchService.startSearch(query, site, offset, limit));
     }
 }
