@@ -29,14 +29,14 @@ public class SearchServiceImpl implements SearchService {
         if (query == null || query.isBlank()) throw new RunApplicationException("Задан пустой поисковый запрос");
         if (siteUrl == null && dao.findAllSites().stream().noneMatch(site -> site.getStatus() == Status.INDEXED))
             throw new RunApplicationException("Сайты ещё не проиндексированы");
-        else if (siteUrl != null) {
+        if (siteUrl != null) {
             Site site = dao.findSiteByUrl(siteUrl);
             if (site == null) throw new RunApplicationException("Данный сайт не указан в конфигурационном файле");
             if (site.getStatus() != Status.INDEXED)
                 throw new RunApplicationException("Сайт ещё не проиндексирован");
         }
-        List<String> lemmas = getLemmas(query, siteUrl, limit);
-        List<Page> pages = getSearchResultPages(lemmas, siteUrl);
+        List<String> lemmas = getLemmas(query, siteUrl);
+        List<Page> pages = getSearchResultPages(lemmas, siteUrl, limit);
         if (pages.isEmpty()) return new SearchResultResponse(0, new SearchResultResponse.SearchResult[0]);
         SearchResultResponse.SearchResult[] data = getDataArray(getPagesAndRelevanceMap(pages, lemmas), lemmas);
         return new SearchResultResponse(data.length, data);
@@ -57,27 +57,26 @@ public class SearchServiceImpl implements SearchService {
                 document.title(), snippet, relevance);
     }
 
-    private List<String> getLemmas(String query, String site, int upperPagesCountBound) {
+    private List<String> getLemmas(String query, String site) {
         return morphologyService.getLemmasSet(query)
                 .stream()
                 .map(lemma -> Map.entry(lemma,
                         site == null ? dao.getTotalFrequencyForLemma(lemma)
                                 : dao.getFrequencyForLemmaBySite(lemma, site)))
-                .filter(entry -> entry.getValue() < upperPagesCountBound)
                 .sorted(Map.Entry.comparingByValue())
                 .map(Map.Entry::getKey)
                 .toList();
     }
 
-    private List<Page> getSearchResultPages(List<String> lemmas, String site) {
+    private List<Page> getSearchResultPages(List<String> lemmas, String site, int limit) {
         if (lemmas.isEmpty()) return List.of();
         String lemma = lemmas.get(0);
         List<Page> pages = getPages(lemma, site);
         lemmas.stream()
                 .skip(1L)
                 .map(l -> getPages(l, site))
-                .forEach(pageList -> pages.removeIf(page -> !pageList.contains(page)));
-        return pages;
+                .forEach(pages::retainAll);
+        return pages.stream().limit(limit).toList();
     }
 
     private List<Page> getPages(String lemma, String site) {

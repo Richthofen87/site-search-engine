@@ -9,6 +9,7 @@ import ru.vladimirsazonov.SiteSearchEngine.model.Site;
 import ru.vladimirsazonov.SiteSearchEngine.services.indexing.IndexingService;
 import ru.vladimirsazonov.SiteSearchEngine.services.indexing.impl.DAO;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 @Service
@@ -26,7 +27,9 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .stream()
                 .map(site -> new StatisticsResponse.SiteStatistics(site.getUrl(), site.getName(),
                         site.getStatus() == null ? null : site.getStatus().name(),
-                        System.currentTimeMillis(), site.getLastError(),
+                        site.getStatusTime() == null ? System.currentTimeMillis() :
+                                Timestamp.valueOf(site.getStatusTime()).getTime(),
+                        site.getLastError(),
                         site.getPages() == null ? 0 : site.getPages().size(),
                         site.getLemmas() == null ? 0 : site.getLemmas().size()))
                 .toList();

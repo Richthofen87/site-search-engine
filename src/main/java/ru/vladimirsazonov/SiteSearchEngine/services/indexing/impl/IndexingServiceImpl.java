@@ -60,7 +60,6 @@ public class IndexingServiceImpl implements IndexingService {
             if (siteOptional.isEmpty())
                 throw new RunApplicationException("Данная страница находится за пределами сайтов, " +
                         "указанных в конфигурационном файле");
-
             Site site = siteOptional.get();
             String path = urlForSinglePage.substring(site.getUrl().length());
             if (path.isEmpty()) path = "/";

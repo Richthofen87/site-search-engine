@@ -48,7 +48,6 @@ public class MorphologyServiceImpl implements MorphologyService {
         List<String> lemmas;
         if ((lemmas = getLemmasList(text)).isEmpty()) return Set.of();
         return new HashSet<>(lemmas);
-
     }
 
     private List<String> getLemmasList(String text) {
